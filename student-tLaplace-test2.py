@@ -297,7 +297,7 @@ K2 = kernel_RBF(x, x, theta[2:4])
 K = block_diag(K1, K2)
 
 # compute the mean for the approximation
-f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=100)
+f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=10)
 
 '''   
 the error here occurs when you increaase the number of iterations
