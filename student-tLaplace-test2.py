@@ -85,6 +85,7 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
 
         if not np.any(f_h_diff > tol):
             break
+            print('tolerance archived')
 
     return f_h
 
@@ -305,13 +306,10 @@ K = block_diag(K1, K2)
 f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=4000)
 
 
-
-
-
-###
+##
 pred_mean = Pred_Student_vec(kernel_1D, x, y, f_hat, theta, x_test)
 
-# plot test 
+# plot test
 plt.scatter(x, y, s=5)
 plt.scatter(x_test, pred_mean * 1e13, s=4)
 # plt.scatter(x_test, f_hat[0:10], s=4)
