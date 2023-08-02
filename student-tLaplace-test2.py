@@ -66,15 +66,15 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
 
     for i in range(max_iter):
         logL_grad = Grad_logL(y, f_h, nu)
-        Exp_W_fisher = W_FisherM(f_h, nu)  #takes the place of W in algo 3.1
+        W_fisher = W_FisherM(f_h, nu)  #takes the place of W in algo 3.1
 
         #K_inv = np.linalg.inv(K)
         #Q_inv = np.linalg.inv(K_inv + W_fisher)
         #f_h_new = Q_inv.dot(W_fisher.dot(f_h) + logL_grad)
 
-        W_sqrt = sqrtm(Exp_W_fisher)
+        W_sqrt = sqrtm(W_fisher)
         L = np.linalg.cholesky( np.eye(n) + (np.matmul(W_sqrt,K)).dot(W_sqrt) )
-        b = Exp_W_fisher.dot(f_h) + logL_grad
+        b = W_fisher.dot(f_h) + logL_grad
 
         aux_1 = np.linalg.solve(L, (np.matmul(W_sqrt,K)).dot(b) )
         a = b - np.linalg.solve(W_sqrt.dot( np.transpose(L) ),  aux_1 )
@@ -87,6 +87,7 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
             break
 
     return f_h
+
 
 
 ## need to compute W_fisher
