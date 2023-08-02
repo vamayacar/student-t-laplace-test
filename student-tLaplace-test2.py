@@ -57,7 +57,7 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
     """
 
     n = y.shape[0] * 2
-    f_h = np.zeros(n) * 0.0
+    f_h = np.ones(n) * 0.1
 
     for i in range(max_iter):
         logL_grad = Grad_logL(y, f_h, nu)
@@ -67,15 +67,18 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
         #Q_inv = np.linalg.inv(K_inv + W_fisher)
         #f_h_new = Q_inv.dot(W_fisher.dot(f_h) + logL_grad)
 
+        ''' here i will use same notation as in Algorithm 3.1 from book 
+            Gaussian Processes for Machine Learning
+             https://gaussianprocess.org/gpml/chapters/RW.pdf
+        '''
+
         W_sqrt = sqrtm(W_fisher)
-
         L = np.linalg.cholesky( np.eye(n) + (np.matmul(W_sqrt,K)).dot(W_sqrt) )
-
-        b = W_fisher.dot(f_h) + logL_grad
+        b = logL_grad - np.linalg.inv(K).dot(f_h)
 
         aux_1 = np.linalg.solve(L, (np.matmul(W_sqrt,K)).dot(b) )
         a = b - np.linalg.solve(W_sqrt.dot( np.transpose(L) ),  aux_1 )
-        f_h_new = K.dot(a)
+        f_h_new = f_h + K.dot(a)
 
         f_h_diff = np.abs(f_h_new - f_h)
         f_h = f_h_new
