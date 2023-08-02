@@ -56,30 +56,30 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
     W_fisher:  is the fisher matrix information E[W].
     """
 
+    ''' here i will use same notation as in Algorithm 3.1 from book 
+                Gaussian Processes for Machine Learning
+                 https://gaussianprocess.org/gpml/chapters/RW.pdf
+    '''
+
     n = y.shape[0] * 2
     f_h = np.ones(n) * 0.1
 
     for i in range(max_iter):
         logL_grad = Grad_logL(y, f_h, nu)
-        W_fisher = W_FisherM(f_h, nu)
+        Exp_W_fisher = W_FisherM(f_h, nu)  #takes the place of W in algo 3.1
 
         #K_inv = np.linalg.inv(K)
         #Q_inv = np.linalg.inv(K_inv + W_fisher)
         #f_h_new = Q_inv.dot(W_fisher.dot(f_h) + logL_grad)
 
-        ''' here i will use same notation as in Algorithm 3.1 from book 
-            Gaussian Processes for Machine Learning
-             https://gaussianprocess.org/gpml/chapters/RW.pdf
-        '''
-
-        W_sqrt = sqrtm(W_fisher)
+        W_sqrt = sqrtm(Exp_W_fisher)
         L = np.linalg.cholesky( np.eye(n) + (np.matmul(W_sqrt,K)).dot(W_sqrt) )
-        b = logL_grad - np.linalg.inv(K).dot(f_h)
+        b = Exp_W_fisher.dot(f_h) + logL_grad
 
         aux_1 = np.linalg.solve(L, (np.matmul(W_sqrt,K)).dot(b) )
         a = b - np.linalg.solve(W_sqrt.dot( np.transpose(L) ),  aux_1 )
-        f_h_new = f_h + K.dot(a)
-
+        f_h_new = K.dot(a)
+        #print(success until ', i)
         f_h_diff = np.abs(f_h_new - f_h)
         f_h = f_h_new
 
