@@ -29,7 +29,7 @@ def kernel_1D(X1, X2, theta = [1,1]):
     sqdist = (X1 ** 2) + (X2 ** 2) - 2 * np.dot(X1, X2)
     return theta[1] ** 2 * np.exp(-0.5 / theta[0] ** 2 * sqdist)
 
-def kernel_RBF(X1, X2, theta = [1,1]):
+def kernel_RBF(X, theta = [1,1]):
     """
     Isotropic squared exponential kernel.
 
@@ -41,9 +41,9 @@ def kernel_RBF(X1, X2, theta = [1,1]):
     Returns:
         (m x n) matrix
     """
-
-    sqdist = np.sum(X1 ** 2, 1).reshape(-1, 1) + np.sum(X2 ** 2, 1) - 2 * np.dot(X1, X2.T)
-    return theta[1] ** 2 * np.exp(-0.5 / theta[0] ** 2 * sqdist)
+    X_norm = np.sum(X ** 2, axis=-1)
+    K = theta[1] * np.exp(-theta[0] * (X_norm[:, None] + X_norm[None, :] - 2 * np.dot(X, X.T)))
+    return  K
 
 
 def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
@@ -79,7 +79,7 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
         aux_1 = np.linalg.solve(L, (np.matmul(W_sqrt,K)).dot(b) )
         a = b - np.linalg.solve(W_sqrt.dot( np.transpose(L) ),  aux_1 )
         f_h_new = K.dot(a)
-        #print(success until ', i)
+        print(f'success until ', i)
         f_h_diff = np.abs(f_h_new - f_h)
         f_h = f_h_new
 
@@ -87,7 +87,6 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
             break
 
     return f_h
-
 
 
 ## need to compute W_fisher
@@ -136,10 +135,11 @@ def Grad_logL(y, f, nu):
     N = np.size(f)
 
     v1 = v2 = np.zeros_like(y) * 0.0
+    n = N // 2
 
-    for i in range(N // 2):
-        z[i] = (y[i] - f[i]) / np.exp(f[i + (N // 2)])
-        v1[i] = (1 + 1 / nu) * z[i] / (np.exp(f[i + N // 2]) * (1 + z[i] ** 2 / nu))
+    for i in range(n):
+        z[i] = (y[i] - f[i]) / np.exp(f[i + n])
+        v1[i] = (1 + 1 / nu) * ( z[i] / (np.exp(f[i + n]) * (1 + z[i] ** 2 / nu)) )
         v2[i] = (z[i] ** 2 - 1) / (1 + z[i] ** 2 / nu)
 
     return np.append(v1, v2)
@@ -174,7 +174,7 @@ def logL(y, f, nu):
 
 
 # negative log likelihood marginal function approximation
-def nll_fn(X, y):
+def nll_fn(X,y,tmax_iter = 10**2):
     """
     Returns the negative log-likelihood function for data X, y.
     """
@@ -186,22 +186,23 @@ def nll_fn(X, y):
         # K_a = kernel_1D(X,X,theta)   #= K_(X, theta)
 
         #### Commputation of matrix K
-        K1 = kernel_RBF(X, X, theta[0:2])
-        K2 = kernel_RBF(X, X, theta[2:4])
+        K1 = kernel_RBF(X, theta[0:2])
+        K2 = kernel_RBF(X, theta[2:4])
         K_a = block_diag(K1, K2)
         K_a_inv = np.linalg.inv(K_a)
 
         # posterior mode depends on theta (via K_a)
-        f_hat = posterior_mode(X, y, K_a, theta[4]).ravel()
+        f_hat = posterior_mode(X, y, K_a, theta[4], max_iter=tmax_iter).ravel()
         W = W_FisherM(f_hat, theta[4])
 
         n = y.size
         temp1 = sqrtm(W)
         temp2 = np.eye(2 * n) + temp1 @ K_a @ temp1
 
-        ll = - 0.5 * f_hat.T.dot(K_a_inv).dot(f_hat) \
-             - 0.5 * np.linalg.slogdet(temp2)[1] \
-             + logL(y, f_hat, theta[4])
+        ll =  logL(y, f_hat, theta[4]) \
+              - 0.5 * f_hat.T.dot(K_a_inv).dot(f_hat) \
+              - 0.5 * np.linalg.slogdet(temp2)[1]
+
 
         return -ll
 
@@ -293,19 +294,16 @@ res = minimize(nll_fn(x, y), [1, 1, 1, 1, 5],
 theta = res.x
 print(theta)
 
-#### Commputation of matrix K
+#### Computation of matrix K
 
 
-K1 = kernel_RBF(x, x, theta[0:2])
-K2 = kernel_RBF(x, x, theta[2:4])
+K1 = kernel_RBF(x, theta[0:2])
+K2 = kernel_RBF(x, theta[2:4])
 K = block_diag(K1, K2)
 
 # compute the mean for the approximation
-f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=10)
+f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=4000)
 
-'''   
-the error here occurs when you increaase the number of iterations
-'''
 
 
 
@@ -313,9 +311,9 @@ the error here occurs when you increaase the number of iterations
 ###
 pred_mean = Pred_Student_vec(kernel_1D, x, y, f_hat, theta, x_test)
 
-# plot test NG
+# plot test 
 plt.scatter(x, y, s=5)
-plt.scatter(x_test, pred_mean, s=4)
+plt.scatter(x_test, pred_mean * 1e13, s=4)
 # plt.scatter(x_test, f_hat[0:10], s=4)
 plt.title("actual data -- Predicting")
 plt.xlabel("x-label")
