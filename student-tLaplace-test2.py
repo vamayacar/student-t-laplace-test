@@ -299,9 +299,8 @@ res = minimize(nll_fn(x, y), [1, 1, 1, 1, 5],
 theta = res.x
 print(theta)
 
+# theta = [1, 1, 1, 1, 5]
 #### Computation of matrix K
-
-
 K1 = kernel_RBF(x, theta[0:2])
 K2 = kernel_RBF(x, theta[2:4])
 K = block_diag(K1, K2)
