@@ -275,10 +275,14 @@ def Pred_Student_vec(kernel, X, y, f, theta, X_star):
 # usign the same example as in the begging to the code
 
 
-x = np.random.uniform(-5, 5, 10).reshape(-1, 1)
+# n_t training points 
+n_t = 10
+x = np.random.uniform(-5, 5, n_t).reshape(-1, 1)
 y = 5 * np.sin(x) + 5
 
-x_test = np.random.uniform(-5, 5, 5).reshape(-1, 1)
+# m_t test points
+m_t = 5
+x_test = np.random.uniform(-5, 5, m_t).reshape(-1, 1)
 y_test = 5 * np.sin(x_test) + 5
 
 plt.scatter(x, y, s=5)
@@ -310,8 +314,9 @@ f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=4000)
 pred_mean = Pred_Student_vec(kernel_1D, x, y, f_hat, theta, x_test)
 
 # plot test
-plt.scatter(x, y, s=5)
-plt.scatter(x_test, pred_mean * 1e13, s=4)
+plt.scatter(x, y, s=5,color='blue')
+plt.scatter(x_test, pred_mean , s=4, color='red')
+plt.scatter(x_test, y_test , s=4, color='green')
 # plt.scatter(x_test, f_hat[0:10], s=4)
 plt.title("actual data -- Predicting")
 plt.xlabel("x-label")
