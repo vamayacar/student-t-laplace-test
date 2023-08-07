@@ -1,4 +1,6 @@
-
+#Run these two lines to erase all variables
+#   import  sys
+#   sys.modules[__name__].__dict__.clear()
 
 # Victor Amaya @ Duke University.
 
@@ -27,7 +29,7 @@ from scipy.optimize import minimize
 def kernel_1D(X1, X2, theta = [1,1]):
 
     sqdist = (X1 ** 2) + (X2 ** 2) - 2 * np.dot(X1, X2)
-    return theta[1] ** 2 * np.exp(-0.5 / theta[0] ** 2 * sqdist)
+    return theta[1] * np.exp(-0.5 * sqdist * theta[0])
 
 def kernel_RBF(X, theta = [1,1]):
     """
@@ -42,11 +44,11 @@ def kernel_RBF(X, theta = [1,1]):
         (m x n) matrix
     """
     X_norm = np.sum(X ** 2, axis=-1)
-    K = theta[1] * np.exp(-theta[0] * (X_norm[:, None] + X_norm[None, :] - 2 * np.dot(X, X.T)))
-    return  K
+    K = theta[1] * np.exp(-0.5*theta[0] * (X_norm[:, None] + X_norm[None, :] - 2 * np.dot(X, X.T)))
+    return K
 
 
-def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
+def posterior_mode(X, y, K, nu, max_iter=10**3, tol=1e-9):
     """
     K:   prior covariance matrix K = diag(K_1,K_2).
          K_k is cov(f_k(x_i), f_k(x_j))_{i,j} ; k =1,2.
@@ -62,7 +64,7 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
     '''
 
     n = y.shape[0] * 2
-    f_h = np.ones(n) * 0.1
+    f_h = np.zeros(n,dtype=float)
 
     for i in range(max_iter):
         logL_grad = Grad_logL(y, f_h, nu)
@@ -72,20 +74,30 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
         #Q_inv = np.linalg.inv(K_inv + W_fisher)
         #f_h_new = Q_inv.dot(W_fisher.dot(f_h) + logL_grad)
 
-        W_sqrt = sqrtm(W_fisher)
-        L = np.linalg.cholesky( np.eye(n) + (np.matmul(W_sqrt,K)).dot(W_sqrt) )
-        b = W_fisher.dot(f_h) + logL_grad
+        W_sr = sqrtm(W_fisher)
+        #L = np.linalg.cholesky( np.eye(n) + (np.matmul(W_sr,K)).dot(W_sr) )
+        #b = W_fisher.dot(f_h) + logL_grad
+        #aux_1 = np.linalg.solve(L, (np.matmul(W_sr,K)).dot(b) )
+        #a = b - np.linalg.solve(W_sqrt.dot( np.transpose(L) ),  aux_1 )
+        #f_h_new = K.dot(a)
 
-        aux_1 = np.linalg.solve(L, (np.matmul(W_sqrt,K)).dot(b) )
-        a = b - np.linalg.solve(W_sqrt.dot( np.transpose(L) ),  aux_1 )
+        W_sr_K = np.matmul(W_sr,K)
+        B = np.eye(W_fisher.shape[0]) + np.matmul(W_sr_K, W_sr)
+        L = cholesky(B, lower=True)
+
+        b = W_fisher.dot(f_h) + logL_grad
+        a = b - W_sr @ cho_solve((L, True), W_sr_K.dot(b))
         f_h_new = K.dot(a)
-        print(f'success until ', i)
+
+        #print(f'success until ', i)
+
         f_h_diff = np.abs(f_h_new - f_h)
         f_h = f_h_new
 
         if not np.any(f_h_diff > tol):
-            break
             print('tolerance archived')
+            return f_h
+            break
 
     return f_h
 
@@ -98,7 +110,7 @@ def posterior_mode(X, y, K, nu, max_iter=10 ** 3, tol=1e-9):
 
 # From appendix B.1 of paper:
 def W_Matrix(y, f, nu):
-    z = np.zeros_like(y) * 0.0
+    z = np.zeros_like(y, dtype=np.float64)
     N = np.size(f)
     W = np.eye(N) * 0.0
 
@@ -132,10 +144,10 @@ def W_Matrix(y, f, nu):
 
 # From appendix B.3 of paper:
 def Grad_logL(y, f, nu):
-    z = np.zeros_like(y) * 0.0
+    z = np.zeros_like(y, dtype=np.float64)
     N = np.size(f)
 
-    v1 = v2 = np.zeros_like(y) * 0.0
+    v1 = v2 = np.zeros_like(y, dtype=np.float64)
     n = N // 2
 
     for i in range(n):
@@ -220,20 +232,24 @@ prediction of new inquiry points
 #   tetha =  [l_1, s_1, l_2, s_2, nu]
 
 def Pred_Student(kernel, X, y, f, theta, x_star):
-    z = np.zeros_like(y) * 0.0;
-    v1 = np.zeros_like(y) * 0.0
+
+    # Here we use equation (22)  from this paper: https://arxiv.org/pdf/1712.07437.pdf
+    # to compute the vector mu_1
+
+    z = np.zeros_like(y, dtype=np.float64)
+    v1 = np.zeros_like(y, dtype=np.float64)
     n = X.shape[0]
-    k = np.zeros(n) * 0.0
+    k_1 = np.zeros(n, dtype=np.float64)
 
     # counter = 0
     for i in range(n):
-        k[i] = kernel(x_star, X[i], theta[0:2])
+        k_1[i] = kernel(x_star, X[i], theta[0:2])
         z[i] = (y[i] - f[i]) / np.exp(f[i + n])
-        v1[i] = (1 + 1 / theta[4]) * z[i] / (np.exp(f[i + n]) * (1 + z[i] ** 2 / theta[4]))
+        v1[i] = (1 + 1 / theta[4]) * z[i] / (np.exp(f[i + n]) * (1 + (z[i] ** 2 / theta[4])))
         # counter += 1
         # print(v1[i], 'testing', counter)
 
-    return k.dot(v1)
+    return k_1.dot(v1)
 
 
 # TESTING!!!
@@ -247,10 +263,10 @@ def Pred_Student(kernel, X, y, f, theta, x_star):
 
 
 def Pred_Student_vec(kernel, X, y, f, theta, X_star):
-    m = X_star.shape[0]
-    temp = np.zeros(m) * 0.0
+    n = X_star.shape[0]
+    temp = np.zeros(n) * 0.0
 
-    for j in range(m):
+    for j in range(n):
         temp[j] = Pred_Student(kernel, X, y, f, theta, X_star[j])
 
     return temp
@@ -275,13 +291,13 @@ def Pred_Student_vec(kernel, X, y, f, theta, X_star):
 # usign the same example as in the begging to the code
 
 
-# n_t training points 
-n_t = 10
+# n_t training points
+n_t = 50
 x = np.random.uniform(-5, 5, n_t).reshape(-1, 1)
 y = 5 * np.sin(x) + 5
 
 # m_t test points
-m_t = 5
+m_t = 250
 x_test = np.random.uniform(-5, 5, m_t).reshape(-1, 1)
 y_test = 5 * np.sin(x_test) + 5
 
@@ -295,19 +311,23 @@ plt.show()
 res = minimize(nll_fn(x, y), [1, 1, 1, 1, 5],
                bounds=((1e-3, None), (1e-3, None), (1e-3, None), (1e-3, None), (3, None)),
                method='L-BFGS-B')
-# theta = np.array([1,1,1,1,5])
+# theta = np.array([1,1,1,1,10**5])
+
+# try with method "L-BFGS-B"
+
+
 theta = res.x
 print(theta)
 
-# theta = [1, 1, 1, 1, 5]
+# theta = np.array([1,1,1,1,10**5])
+
 #### Computation of matrix K
 K1 = kernel_RBF(x, theta[0:2])
 K2 = kernel_RBF(x, theta[2:4])
 K = block_diag(K1, K2)
 
 # compute the mean for the approximation
-f_hat = posterior_mode(X=x, y=y, K=K, nu = theta[4], max_iter=4000)
-
+f_hat = posterior_mode(X=x, y=y, K=K, nu=theta[4], max_iter=8000)
 
 ##
 pred_mean = Pred_Student_vec(kernel_1D, x, y, f_hat, theta, x_test)
@@ -321,9 +341,3 @@ plt.title("actual data -- Predicting")
 plt.xlabel("x-label")
 plt.ylabel("y-label")
 plt.show()
-
-
-
-
-
-
