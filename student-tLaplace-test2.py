@@ -308,15 +308,14 @@ plt.xlabel("x-label")
 plt.ylabel("y-label")
 plt.show()
 
-res = minimize(nll_fn(x, y), [1, 1, 1, 1, 5],
-               bounds=((1e-3, None), (1e-3, None), (1e-3, None), (1e-3, None), (3, None)),
-               method='L-BFGS-B')
-# theta = np.array([1,1,1,1,10**5])
-
+#res = minimize(nll_fn(x, y), [1, 1, 1, 1, 5],
+#               bounds=((1e-3, None), (1e-3, None), (1e-3, None), (1e-3, None), (3, None)),
+#               method='L-BFGS-B')
+#theta = res.x
 # try with method "L-BFGS-B"
 
+theta = np.array([1,1,1,1,10**5])
 
-theta = res.x
 print(theta)
 
 # theta = np.array([1,1,1,1,10**5])
