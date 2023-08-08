@@ -1,3 +1,5 @@
+
+
 #Run these two lines to erase all variables
 #   import  sys
 #   sys.modules[__name__].__dict__.clear()
@@ -233,7 +235,7 @@ prediction of new inquiry points
 
 def Pred_Student(kernel, X, y, f, theta, x_star):
 
-    # Here we use equation (22)  from this paper: https://arxiv.org/pdf/1712.07437.pdf
+    # Here we use equation (22) & (25)  from this paper: https://arxiv.org/pdf/1712.07437.pdf
     # to compute the vector mu_1
 
     z = np.zeros_like(y, dtype=np.float64)
@@ -340,3 +342,9 @@ plt.title("actual data -- Predicting")
 plt.xlabel("x-label")
 plt.ylabel("y-label")
 plt.show()
+
+
+
+
+
+
